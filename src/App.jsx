@@ -1006,6 +1006,7 @@ export default function DCASimulator() {
       riskData.push({
         label: fmtDate(d.date),
         risk: d.risk,
+        price: Math.round(d.price),
       });
     }
 
@@ -1126,7 +1127,11 @@ export default function DCASimulator() {
         <div style={{ color: T.textMid, marginBottom: 4 }}>{label}</div>
         {payload.map((p, i) => (
           <div key={i} style={{ color: p.color || T.text }}>
-            {p.name}: {p.name === "Risk" ? p.value?.toFixed(3) : fmtC(p.value)}
+            {p.name === "Risk"
+              ? `Risk: ${p.value?.toFixed(3)}`
+              : p.name === "Price"
+              ? `Price: ${fmtC(p.value)}`
+              : `${p.name}: ${fmtC(p.value)}`}
           </div>
         ))}
       </div>
@@ -1644,26 +1649,38 @@ export default function DCASimulator() {
               <div>
                 <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 500, color: T.text, fontFamily: "'Space Grotesk', sans-serif" }}>
                   {tab === "dynamic" ? "Simulated Strategy Over Time" : "Risk Metric Over Time"}
+                  <span style={{ fontSize: 10, color: T.textDim, fontWeight: 400, marginLeft: 10, fontFamily: "'DM Mono', monospace" }}>
+                    — <span style={{ color: "#aabbff" }}>risk</span> vs <span style={{ color: "#444466" }}>price</span>
+                  </span>
                 </h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <ComposedChart data={riskData} margin={{ top: 5, right: 130, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#151530" />
                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#555" }} interval={Math.floor(riskData.length / 8)} />
+                    {/* Left Y-axis: risk 0–1 */}
                     <YAxis
+                      yAxisId="risk"
                       domain={[0, 1]} width={35}
                       tick={{ fontSize: 10, fill: "#555" }}
                       tickFormatter={v => v.toFixed(1)}
                       ticks={[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]}
                     />
+                    {/* Right Y-axis: price — muted, auto scale */}
+                    <YAxis
+                      yAxisId="price"
+                      orientation="right"
+                      width={55}
+                      tick={{ fontSize: 9, fill: "#333355" }}
+                      tickFormatter={v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}K` : v}
+                    />
                     <Tooltip content={<CustomTooltip />} />
 
-                    {/* Exponential buy tiers — dynamic from selected risk band */}
+                    {/* Exponential buy tiers */}
                     {tab === "dynamic" && strategy === "Exponential" && expTiers.map(({ y1, y2, mult }, idx) => {
-                      // Lightest at top tier, darkest at bottom
                       const alpha = 0.13 + (idx / Math.max(expTiers.length - 1, 1)) * 0.33;
                       return (
                         <ReferenceArea
-                          key={mult} y1={y1} y2={y2}
+                          key={mult} yAxisId="risk" y1={y1} y2={y2}
                           fill="#22c55e" fillOpacity={alpha}
                           stroke="#22c55e" strokeOpacity={0.35} strokeWidth={0.5}
                           label={{
@@ -1676,12 +1693,12 @@ export default function DCASimulator() {
                       );
                     })}
 
-                    {/* Linear mode — show each tier like exponential */}
+                    {/* Linear buy tiers */}
                     {tab === "dynamic" && strategy === "Linear" && linearTiers.map(({ y1, y2, mult }, idx) => {
                       const alpha = 0.13 + (idx / Math.max(linearTiers.length - 1, 1)) * 0.33;
                       return (
                         <ReferenceArea
-                          key={mult} y1={y1} y2={y2}
+                          key={mult} yAxisId="risk" y1={y1} y2={y2}
                           fill="#22c55e" fillOpacity={alpha}
                           stroke="#22c55e" strokeOpacity={0.35} strokeWidth={0.5}
                           label={{
@@ -1694,7 +1711,27 @@ export default function DCASimulator() {
                       );
                     })}
 
-                    <Line type="monotone" dataKey="risk" name="Risk" stroke="#aabbff" strokeWidth={1.5} dot={false} />
+                    {/* Price — muted background line on right axis */}
+                    <Line
+                      yAxisId="price"
+                      type="monotone"
+                      dataKey="price"
+                      name="Price"
+                      stroke="#334466"
+                      strokeWidth={1.5}
+                      dot={false}
+                      strokeOpacity={0.7}
+                    />
+                    {/* Risk — hero line on left axis */}
+                    <Line
+                      yAxisId="risk"
+                      type="monotone"
+                      dataKey="risk"
+                      name="Risk"
+                      stroke="#aabbff"
+                      strokeWidth={1.5}
+                      dot={false}
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
