@@ -101,9 +101,10 @@ export default function DCASimulator() {
   const [tab, setTab] = useState("dynamic");
 
   const MASTER_DEFAULTS = {
-    assetId: "SPY", customTicker: null, frequency: "Monthly", startDate: "2022-02-02",
+    assetId: "SPY", customTicker: null, frequency: "Monthly",
+    startDate: (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 3); return d.toISOString().slice(0,10); })(),
     riskBandIdx: 4, strategy: "Linear", riskOffset: -0.05,
-    sellEnabled: false, sell90: true, initEnabled: false,
+    sellEnabled: false, sell90: true, sell80: true, initEnabled: false,
     initShares: "", initAvgPrice: "", initDate: "2022-01-01",
     leapEnabled: false, ccEnabled: false,
     ccPremiumPct: 0.40, leap09: true, leapCostPct: 0.40, leapDelta: 0.75,
@@ -180,7 +181,13 @@ export default function DCASimulator() {
 
   const [frequency, setFrequency] = useState(() => getInitial("frequency", "Monthly"));
   const [dayOfMonth, setDayOfMonth] = useState(() => getInitial("dayOfMonth", 13));
-  const [startDate, setStartDate] = useState(() => getInitial("startDate", "2022-02-02"));
+  const [startDate, setStartDate] = useState(() => {
+    const ud = loadUserDefaults();
+    if (ud?.startDate) return ud.startDate;
+    const d = new Date(); d.setFullYear(d.getFullYear() - 3);
+    return d.toISOString().slice(0, 10);
+  });
+  const [autoStart, setAutoStart] = useState(true);
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [riskBandIdx, setRiskBandIdx] = useState(() => getInitial("riskBandIdx", 4));
   const [strategy, setStrategy] = useState(() => getInitial("strategy", "Linear"));
@@ -192,6 +199,7 @@ export default function DCASimulator() {
   const [initShares, setInitShares] = useState(() => getInitial("initShares", ""));
   const [initAvgPrice, setInitAvgPrice] = useState(() => getInitial("initAvgPrice", ""));
   const [sell90, setSell90] = useState(() => getInitial("sell90", true));
+  const [sell80, setSell80] = useState(() => getInitial("sell80", true));
   const [leapEnabled, setLeapEnabled] = useState(() => getInitial("leapEnabled", false));
   const [ccEnabled, setCcEnabled] = useState(() => getInitial("ccEnabled", false));
   const [ccPremiumPct, setCcPremiumPct] = useState(() => getInitial("ccPremiumPct", 0.40)); // 0.40% of share value per month
@@ -377,6 +385,7 @@ export default function DCASimulator() {
     const risk = portfolioRisk[upper] ?? null;
     if (risk === null) return { label: "Loading...", color: T.textDim };
     if (risk >= 0.90) return { label: "Sell 10%", color: "#f59e0b" };
+    if (risk >= 0.80) return { label: "Sell 5%",  color: "#f97316" };
     if (risk >= riskBand.max) return { label: "Hold", color: "#94a3b8" };
     const mult = getMultiplier(risk, riskBand, strategy);
     if (mult === 0) return { label: "Hold", color: "#94a3b8" };
@@ -581,13 +590,6 @@ export default function DCASimulator() {
       setRiskBandIdx(4);
       setRiskOffset(-0.05);
     }
-    // Auto-set currency for .TO stocks
-    const ticker = (customTicker ?? assetId ?? "").toUpperCase();
-    if (ticker.endsWith(".TO")) {
-      setCurrency("CAD");
-    } else {
-      setCurrency("USD");
-    }
     // Reset sell strategy, initial position and LEAP
     setSellEnabled(false);
     setInitEnabled(false);
@@ -603,6 +605,14 @@ export default function DCASimulator() {
       setEndDate(new Date().toISOString().slice(0, 10));
     }
   }, [tab]);
+
+  // Auto-link start date to exactly 3 years before end date
+  useEffect(() => {
+    if (!autoStart) return;
+    const d = new Date(endDate);
+    d.setFullYear(d.getFullYear() - 3);
+    setStartDate(d.toISOString().slice(0, 10));
+  }, [endDate, autoStart]);
 
   const riskBand = RISK_BANDS[riskBandIdx];
   const displayTicker = customTicker ?? asset.id;
@@ -866,6 +876,7 @@ export default function DCASimulator() {
       let sellProceeds = 0;
       if (sellEnabled && isBuyDay && totalAsset > 0 && !isLastDay) {
         if (sell90 && d.risk >= 0.90) sellPct = 0.10;
+        else if (sell80 && d.risk >= 0.80) sellPct = 0.05;
         if (sellPct > 0) {
           const assetSold = totalAsset * sellPct;
           sellProceeds = assetSold * d.price;
@@ -1041,7 +1052,7 @@ export default function DCASimulator() {
         sellPnlPct: totalInvested > 0 ? (((currentPortfolio + totalSellProceeds) / totalInvested - 1) * 100).toFixed(2) : 0,
       },
     };
-  }, [rangeData, tab, baseAmount, frequency, dayOfMonth, riskBand, strategy, sellEnabled, sell90, initEnabled, initShares, initAvgPrice, initDate, leapEnabled, leap09, leapCostPct, leapDelta, ccEnabled, ccPremiumPct]);
+  }, [rangeData, tab, baseAmount, frequency, dayOfMonth, riskBand, strategy, sellEnabled, sell90, sell80, initEnabled, initShares, initAvgPrice, initDate, leapEnabled, leap09, leapCostPct, leapDelta, ccEnabled, ccPremiumPct]);
 
   const { chartData, riskData, tradeLog, stats } = simulation;
 
@@ -1073,13 +1084,8 @@ export default function DCASimulator() {
 
   // Currency helpers
   const currSym = currency === "CAD" ? "CA$" : "$";
-  const isAlreadyCAD = displayTicker?.toUpperCase().endsWith(".TO");
-  const toDisplay = (val) => {
-    if (isAlreadyCAD && currency === "USD") return val / cadRate; // CAD → USD
-    if (!isAlreadyCAD && currency === "CAD") return val * cadRate; // USD → CAD
-    return val; // no conversion needed
-  };
-  const fmtC = (val) => fmt$(toDisplay(val), currSym);
+  const toDisplay = (usdVal) => currency === "CAD" ? usdVal * cadRate : usdVal;
+  const fmtC = (usdVal) => fmt$(toDisplay(usdVal), currSym);
 
   const inputStyle = {
     background: T.inputBg, border: `1px solid ${T.border2}`, borderRadius: 6,
@@ -1170,7 +1176,7 @@ export default function DCASimulator() {
                       const settings = {
                         assetId, customTicker, frequency, startDate,
                         riskBandIdx, strategy, riskOffset,
-                        sellEnabled, sell90, initEnabled,
+                        sellEnabled, sell90, sell80, initEnabled,
                         initShares, initAvgPrice, initDate,
                         leapEnabled, ccEnabled, ccPremiumPct,
                         leap09, leapCostPct, leapDelta,
@@ -1187,7 +1193,7 @@ export default function DCASimulator() {
                       setFrequency(d.frequency); setStartDate(d.startDate);
                       setRiskBandIdx(d.riskBandIdx); setStrategy(d.strategy);
                       setRiskOffset(d.riskOffset); setSellEnabled(d.sellEnabled);
-                      setSell90(d.sell90); setInitEnabled(d.initEnabled);
+                      setSell90(d.sell90); setSell80(d.sell80 ?? true); setInitEnabled(d.initEnabled);
                       setInitShares(d.initShares); setInitAvgPrice(d.initAvgPrice);
                       setInitDate(d.initDate); setLeapEnabled(d.leapEnabled);
                       setCcEnabled(d.ccEnabled); setCcPremiumPct(d.ccPremiumPct);
@@ -1333,19 +1339,9 @@ export default function DCASimulator() {
                 {pillBtn(currency === "USD", () => setCurrency("USD"), "USD")}
                 {pillBtn(currency === "CAD", () => setCurrency("CAD"), "CAD")}
               </div>
-              {currency === "CAD" && !isAlreadyCAD && (
+              {currency === "CAD" && (
                 <div style={{ fontSize: 9, color: T.textDim, marginTop: 3 }}>
                   Rate: 1 USD = {cadRate.toFixed(4)} CAD
-                </div>
-              )}
-              {currency === "USD" && isAlreadyCAD && (
-                <div style={{ fontSize: 9, color: T.textDim, marginTop: 3 }}>
-                  Rate: 1 USD = {cadRate.toFixed(4)} CAD
-                </div>
-              )}
-              {currency === "CAD" && isAlreadyCAD && (
-                <div style={{ fontSize: 9, color: T.textDim, marginTop: 3 }}>
-                  Native CAD — no conversion
                 </div>
               )}
             </div>
@@ -1366,10 +1362,23 @@ export default function DCASimulator() {
               </div>
             )}
             <div>
-              <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>{tab === "lump" ? "Purchase Date" : "Starting Date"}</div>
+              <div style={{ fontSize: 10, color: T.label, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                {tab === "lump" ? "Purchase Date" : "Starting Date"}
+                {tab !== "lump" && (
+                  <button onClick={() => setAutoStart(a => !a)}
+                    title={autoStart ? "Auto-linked to end date − 3 years. Click to unlock." : "Click to re-link to end date − 3 years."}
+                    style={{
+                      background: autoStart ? T.accent + "33" : T.inputBg,
+                      border: `1px solid ${autoStart ? T.accent : T.border2}`,
+                      borderRadius: 3, padding: "1px 6px", cursor: "pointer",
+                      fontSize: 9, color: autoStart ? T.accent : T.textDim,
+                      fontFamily: "'DM Mono', monospace",
+                    }}>{autoStart ? "🔗 −3yr" : "🔓 manual"}</button>
+                )}
+              </div>
               <input type="date" style={inputStyle} value={startDate}
                 min={minDate} max={endDate}
-                onChange={e => setStartDate(e.target.value)} />
+                onChange={e => { setStartDate(e.target.value); setAutoStart(false); }} />
             </div>
             {tab !== "lump" && (
               <div>
@@ -1441,7 +1450,12 @@ export default function DCASimulator() {
                 <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11 }}>
                   <input type="checkbox" checked={sell90} onChange={e => setSell90(e.target.checked)}
                     style={{ accentColor: "#f59e0b", width: 14, height: 14, cursor: "pointer" }} />
-                  <span style={{ color: sell90 ? "#f59e0b" : "#555" }}>Sell <strong>10%</strong> at risk &gt; 0.90</span>
+                  <span style={{ color: sell90 ? "#f59e0b" : "#555" }}>Sell <strong>10%</strong> at risk ≥ 0.90</span>
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11 }}>
+                  <input type="checkbox" checked={sell80} onChange={e => setSell80(e.target.checked)}
+                    style={{ accentColor: "#f97316", width: 14, height: 14, cursor: "pointer" }} />
+                  <span style={{ color: sell80 ? "#f97316" : "#555" }}>Sell <strong>5%</strong> at risk 0.80 – 0.899</span>
                 </label>
               </div>
             )}
