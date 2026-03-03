@@ -103,7 +103,7 @@ export default function DCASimulator() {
 
   const MASTER_DEFAULTS = {
     assetId: "SPY", customTicker: null, frequency: "Monthly",
-    startDate: (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 3); return d.toISOString().slice(0,10); })(),
+    startDate: (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 5); return d.toISOString().slice(0,10); })(),
     riskBandIdx: 4, strategy: "Linear", riskOffset: -0.05, autoOffset: true,
     sellEnabled: false, sell90: true, sell80: true, initEnabled: false,
     initShares: "", initAvgPrice: "", initDate: "2022-01-01",
@@ -185,7 +185,7 @@ export default function DCASimulator() {
   const [startDate, setStartDate] = useState(() => {
     const ud = loadUserDefaults();
     if (ud?.startDate) return ud.startDate;
-    const d = new Date(); d.setFullYear(d.getFullYear() - 3);
+    const d = new Date(); d.setFullYear(d.getFullYear() - 5);
     return d.toISOString().slice(0, 10);
   });
   const [autoStart, setAutoStart] = useState(true);
@@ -637,7 +637,7 @@ export default function DCASimulator() {
   useEffect(() => {
     if (!autoStart) return;
     const d = new Date(endDate);
-    d.setFullYear(d.getFullYear() - 3);
+    d.setFullYear(d.getFullYear() - 5);
     setStartDate(d.toISOString().slice(0, 10));
   }, [endDate, autoStart]);
 
@@ -837,7 +837,25 @@ export default function DCASimulator() {
       });
     }
     const lumpPrice = rangeData[0]?.price ?? 1;
-    const lumpEquiv = tab === "lump" ? baseAmount : baseAmount * Math.max(rangeData.length / 30, 1);
+    // Pre-calculate actual total invested for accurate lump sum comparison
+    let prePassInvested = initEnabled && initSh > 0 && initPx > 0 ? initCost : 0;
+    if (tab === "lump") {
+      prePassInvested = baseAmount;
+    } else {
+      const preScheduled = buildPurchaseDaySet(rangeData, frequency, dayOfMonth);
+      for (let pi = 0; pi < rangeData.length - 1; pi++) {
+        if (!preScheduled.has(pi)) continue;
+        const pd = rangeData[pi];
+        if (tab === "equal") {
+          prePassInvested += baseAmount;
+        } else {
+          let pm = getMultiplier(pd.risk, riskBand, strategy);
+          if (deepDipEnabled && pd.risk < 0.10 && pm > 0) pm *= 2;
+          if (pm > 0) prePassInvested += baseAmount * pm;
+        }
+      }
+    }
+    const lumpEquiv = prePassInvested > 0 ? prePassInvested : baseAmount;
     const lumpAsset = lumpEquiv / lumpPrice;
 
     // Build the set of scheduled day indices ONCE — exactly one per period
@@ -1465,14 +1483,14 @@ export default function DCASimulator() {
                 {tab === "lump" ? "Purchase Date" : "Starting Date"}
                 {tab !== "lump" && (
                   <button onClick={() => setAutoStart(a => !a)}
-                    title={autoStart ? "Auto-linked to end date − 3 years. Click to unlock." : "Click to re-link to end date − 3 years."}
+                    title={autoStart ? "Auto-linked to end date − 5 years. Click to unlock." : "Click to re-link to end date − 5 years."}
                     style={{
                       background: autoStart ? T.accent + "33" : T.inputBg,
                       border: `1px solid ${autoStart ? T.accent : T.border2}`,
                       borderRadius: 3, padding: "1px 6px", cursor: "pointer",
                       fontSize: 9, color: autoStart ? T.accent : T.textDim,
                       fontFamily: "'DM Mono', monospace",
-                    }}>{autoStart ? "🔗 −3yr" : "🔓 manual"}</button>
+                    }}>{autoStart ? "🔗 −5yr" : "🔓 manual"}</button>
                 )}
               </div>
               <input type="date" style={inputStyle} value={startDate}
