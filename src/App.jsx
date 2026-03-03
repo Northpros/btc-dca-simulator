@@ -40,6 +40,7 @@ const RISK_BANDS = [
   { label: "0.4 – 0.499", min: 0.4, max: 0.5 },
   { label: "0.5 – 0.599", min: 0.5, max: 0.6 },
   { label: "0.6 – 0.699", min: 0.6, max: 0.7 },
+  { label: "0.7 – 0.799", min: 0.7, max: 0.8 },
 ];
 
 function fmt$(v, sym="$") {
@@ -103,7 +104,7 @@ export default function DCASimulator() {
   const MASTER_DEFAULTS = {
     assetId: "SPY", customTicker: null, frequency: "Monthly",
     startDate: (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 3); return d.toISOString().slice(0,10); })(),
-    riskBandIdx: 4, strategy: "Linear", riskOffset: -0.05,
+    riskBandIdx: 4, strategy: "Linear", riskOffset: -0.05, autoOffset: true,
     sellEnabled: false, sell90: true, sell80: true, initEnabled: false,
     initShares: "", initAvgPrice: "", initDate: "2022-01-01",
     leapEnabled: false, ccEnabled: false,
@@ -193,6 +194,7 @@ export default function DCASimulator() {
   const [strategy, setStrategy] = useState(() => getInitial("strategy", "Linear"));
   const [scaleY, setScaleY] = useState("Lin");
   const [riskOffset, setRiskOffset] = useState(() => getInitial("riskOffset", -0.05));
+  const [autoOffset, setAutoOffset] = useState(() => getInitial("autoOffset", true));
   const [sellEnabled, setSellEnabled] = useState(() => getInitial("sellEnabled", false));
   const [initEnabled, setInitEnabled] = useState(() => getInitial("initEnabled", false));
   const [initDate, setInitDate] = useState(() => getInitial("initDate", "2022-01-01"));
@@ -580,24 +582,48 @@ export default function DCASimulator() {
   }, [assetId, customTicker, dailyData]);
 
   // Auto-adjust risk defaults + reset sell/init on asset change
+  // If user has saved defaults, preserve those settings across asset switches
   useEffect(() => {
-    const isCrypto = customTicker
-      ? false
-      : (asset.type === "binance" || asset.type === "crypto");
-    if (isCrypto) {
-      setRiskBandIdx(4);
-      setRiskOffset(-0.02);
+    const ud = loadUserDefaults();
+    if (ud) {
+      if (ud.riskBandIdx !== undefined) setRiskBandIdx(ud.riskBandIdx);
+      if (ud.riskOffset !== undefined) setRiskOffset(ud.riskOffset);
+      if (ud.autoOffset !== undefined) setAutoOffset(ud.autoOffset);
+      if (ud.strategy !== undefined) setStrategy(ud.strategy);
+      if (ud.sellEnabled !== undefined) setSellEnabled(ud.sellEnabled);
+      if (ud.sell90 !== undefined) setSell90(ud.sell90);
+      if (ud.sell80 !== undefined) setSell80(ud.sell80);
+      if (ud.deepDipEnabled !== undefined) setDeepDipEnabled(ud.deepDipEnabled);
+      if (ud.initEnabled !== undefined) setInitEnabled(ud.initEnabled);
+      if (ud.leapEnabled !== undefined) setLeapEnabled(ud.leapEnabled);
+      if (ud.ccEnabled !== undefined) setCcEnabled(ud.ccEnabled);
+      if (ud.ccPremiumPct !== undefined) setCcPremiumPct(ud.ccPremiumPct);
+      if (ud.leap09 !== undefined) setLeap09(ud.leap09);
+      if (ud.leapCostPct !== undefined) setLeapCostPct(ud.leapCostPct);
+      if (ud.leapDelta !== undefined) setLeapDelta(ud.leapDelta);
+      if (ud.frequency !== undefined) setFrequency(ud.frequency);
+      if (ud.dayOfMonth !== undefined) setDayOfMonth(ud.dayOfMonth);
+      if (ud.baseAmount !== undefined) setBaseAmount(ud.baseAmount);
+      setInitShares('');
+      setInitAvgPrice('');
     } else {
-      setRiskBandIdx(4);
-      setRiskOffset(-0.05);
+      const isCrypto = customTicker
+        ? false
+        : (asset.type === 'binance' || asset.type === 'crypto');
+      if (isCrypto) {
+        setRiskBandIdx(4);
+        setRiskOffset(-0.02);
+      } else {
+        setRiskBandIdx(4);
+        setRiskOffset(-0.05);
+      }
+      setSellEnabled(false);
+      setInitEnabled(false);
+      setInitShares('');
+      setInitAvgPrice('');
+      setLeapEnabled(false);
+      setCcEnabled(false);
     }
-    // Reset sell strategy, initial position and LEAP
-    setSellEnabled(false);
-    setInitEnabled(false);
-    setInitShares("");
-    setInitAvgPrice("");
-    setLeapEnabled(false);
-    setCcEnabled(false);
   }, [assetId, customTicker]);
 
   // When switching to lump sum, extend end date to today so full growth is shown
@@ -633,8 +659,30 @@ export default function DCASimulator() {
     const e = new Date(endDate + "T23:59:59").getTime();
     return dailyData
       .filter(d => d.ts >= s && d.ts <= e)
-      .map(d => ({ ...d, risk: parseFloat(Math.min(1, Math.max(0, d.risk + riskOffset)).toFixed(4)) }));
-  }, [dailyData, startDate, endDate, riskOffset]);
+      .map(d => ({ ...d, risk: parseFloat(Math.min(1, Math.max(0, d.risk + effectiveOffset)).toFixed(4)) }));
+  }, [dailyData, startDate, endDate, effectiveOffset]);
+
+  // Auto risk offset from realized volatility (60-day)
+  const autoRiskOffset = useMemo(() => {
+    if (dailyData.length < 61) return -0.05;
+    const recent = dailyData.slice(-61);
+    const logReturns = [];
+    for (let i = 1; i < recent.length; i++) {
+      if (recent[i].price > 0 && recent[i-1].price > 0) {
+        logReturns.push(Math.log(recent[i].price / recent[i-1].price));
+      }
+    }
+    if (logReturns.length < 30) return -0.05;
+    const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
+    const variance = logReturns.reduce((a, r) => a + (r - mean) ** 2, 0) / logReturns.length;
+    const dailyVol = Math.sqrt(variance);
+    const annualVol = dailyVol * Math.sqrt(365);
+    // vol ~0.15 (calm SPY) -> -0.02, vol ~0.40 (BTC) -> -0.05, vol ~0.80 (crash) -> -0.10
+    const offset = -0.02 - (annualVol - 0.15) * 0.123;
+    return Math.min(-0.01, Math.max(-0.15, parseFloat(offset.toFixed(3))));
+  }, [dailyData]);
+
+  const effectiveOffset = autoOffset ? autoRiskOffset : riskOffset;
 
   // isPurchaseDay: returns true on the scheduled day OR the next available
   // trading day if the target falls on a weekend/holiday.
@@ -1193,7 +1241,7 @@ export default function DCASimulator() {
                     { label: "Save as default", action: () => {
                       const settings = {
                         assetId, customTicker, frequency, startDate,
-                        riskBandIdx, strategy, riskOffset,
+                        riskBandIdx, strategy, riskOffset, autoOffset,
                         sellEnabled, sell90, sell80, deepDipEnabled, initEnabled,
                         initShares, initAvgPrice, initDate,
                         leapEnabled, ccEnabled, ccPremiumPct,
@@ -1210,7 +1258,7 @@ export default function DCASimulator() {
                       setAssetId(d.assetId); setCustomTicker(d.customTicker);
                       setFrequency(d.frequency); setStartDate(d.startDate);
                       setRiskBandIdx(d.riskBandIdx); setStrategy(d.strategy);
-                      setRiskOffset(d.riskOffset); setSellEnabled(d.sellEnabled);
+                      setRiskOffset(d.riskOffset); setAutoOffset(d.autoOffset ?? true); setSellEnabled(d.sellEnabled);
                       setSell90(d.sell90); setSell80(d.sell80 ?? true); setDeepDipEnabled(d.deepDipEnabled ?? false); setInitEnabled(d.initEnabled);
                       setInitShares(d.initShares); setInitAvgPrice(d.initAvgPrice);
                       setInitDate(d.initDate); setLeapEnabled(d.leapEnabled);
@@ -1434,7 +1482,7 @@ export default function DCASimulator() {
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Deep Dip <span style={{ color: T.textDim }}>&lt; 0.10</span></div>
+                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Deep Value <span style={{ color: T.textDim }}>&lt; 0.10</span></div>
                 <div style={{ display: "flex", gap: 4 }}>
                   {pillBtn(!deepDipEnabled, () => setDeepDipEnabled(false), "Off")}
                   {pillBtn(deepDipEnabled, () => setDeepDipEnabled(true), "⚡ On")}
@@ -1458,15 +1506,28 @@ export default function DCASimulator() {
                 </div>
               )}
               <div>
-                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>
-                  Risk offset <span style={{ color: "#aabbff" }}>{riskOffset >= 0 ? "+" : ""}{riskOffset.toFixed(2)}</span>
+                <div style={{ fontSize: 10, color: T.label, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                  Risk offset <span style={{ color: "#aabbff" }}>{effectiveOffset >= 0 ? "+" : ""}{effectiveOffset.toFixed(2)}</span>
+                  <button onClick={() => setAutoOffset(a => !a)} style={{
+                    background: autoOffset ? "#6C8EFF22" : T.inputBg,
+                    border: "1px solid " + (autoOffset ? "#6C8EFF" : T.border2),
+                    borderRadius: 3, padding: "1px 6px", cursor: "pointer",
+                    fontSize: 9, color: autoOffset ? "#6C8EFF" : T.textDim,
+                    fontFamily: "'DM Mono', monospace",
+                  }}>{autoOffset ? "auto-vol" : "manual"}</button>
                 </div>
-                <input
-                  type="range" min="-0.20" max="0.20" step="0.01"
-                  value={riskOffset}
-                  onChange={e => setRiskOffset(parseFloat(e.target.value))}
-                  style={{ width: 120, accentColor: "#6C8EFF", cursor: "pointer" }}
-                />
+                {autoOffset ? (
+                  <div style={{ fontSize: 10, color: T.textDim, lineHeight: 1.5 }}>
+                    60-day realized vol
+                  </div>
+                ) : (
+                  <input
+                    type="range" min="-0.20" max="0.20" step="0.01"
+                    value={riskOffset}
+                    onChange={e => setRiskOffset(parseFloat(e.target.value))}
+                    style={{ width: 120, accentColor: "#6C8EFF", cursor: "pointer" }}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -1734,6 +1795,7 @@ export default function DCASimulator() {
                       strokeWidth={1.5}
                       dot={false}
                       strokeOpacity={0.85}
+                      strokeDasharray="6 3"
                     />
                     {/* Risk — hero line on left axis */}
                     <Line
