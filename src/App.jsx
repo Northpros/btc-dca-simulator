@@ -1211,6 +1211,13 @@ export default function DCASimulator() {
     }}>{label}</button>
   );
 
+  const InfoTip = ({ text }) => (
+    <span className="info-tip">
+      <span className="info-icon" style={{ color: T.textDim, border: `1px solid ${T.border2}` }}>ⓘ</span>
+      <span className="info-bubble" style={{ background: darkMode ? "#1a1a3a" : "#fff", color: T.text, border: `1px solid ${T.border2}`, boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>{text}</span>
+    </span>
+  );
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
@@ -1238,6 +1245,11 @@ export default function DCASimulator() {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #0d0d1f; }
         ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 2px; }
+        .info-tip { position: relative; display: inline-flex; align-items: center; margin-left: 4px; cursor: help; }
+        .info-tip .info-icon { font-size: 10px; width: 14px; height: 14px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; opacity: 0.4; transition: opacity 0.2s; }
+        .info-tip:hover .info-icon { opacity: 0.9; }
+        .info-tip .info-bubble { display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 260px; padding: 10px 12px; border-radius: 8px; font-size: 11px; line-height: 1.5; z-index: 1000; pointer-events: none; font-family: 'DM Mono', monospace; }
+        .info-tip:hover .info-bubble { display: block; }
       `}</style>
 
       {/* Header */}
@@ -1510,20 +1522,20 @@ export default function DCASimulator() {
           {tab === "dynamic" && (
             <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
               <div>
-                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Accumulate up to risk...</div>
+                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Accumulate up to risk...<InfoTip text="Buy when the asset's risk score falls below this level. Lower values mean you only buy during deeper dips." /></div>
                 <select style={{ ...inputStyle, cursor: "pointer" }} value={riskBandIdx} onChange={e => setRiskBandIdx(Number(e.target.value))}>
                   {RISK_BANDS.map((b, i) => <option key={i} value={i}>{b.label}</option>)}
                 </select>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Buying strategy</div>
+                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Buying strategy<InfoTip text="Linear increases your buy amount steadily (1x, 2x, 3x...) as risk drops. Exponential doubles each tier (1x, 2x, 4x, 8x...) for heavier buying at extremes." /></div>
                 <div style={{ display: "flex", gap: 4 }}>
                   {pillBtn(strategy === "Linear", () => setStrategy("Linear"), "Linear")}
                   {pillBtn(strategy === "Exponential", () => setStrategy("Exponential"), "Exponential")}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Deep Value <span style={{ color: T.textDim }}>&lt; 0.10</span></div>
+                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Deep Value <span style={{ color: T.textDim }}>&lt; 0.10</span><InfoTip text="Doubles your buy multiplier when risk drops below 0.10 — the rarest and deepest dip zone." /></div>
                 <div style={{ display: "flex", gap: 4 }}>
                   {pillBtn(!deepDipEnabled, () => setDeepDipEnabled(false), "Off")}
                   {pillBtn(deepDipEnabled, () => setDeepDipEnabled(true), "⚡ On")}
@@ -1548,7 +1560,7 @@ export default function DCASimulator() {
               )}
               <div>
                 <div style={{ fontSize: 10, color: T.label, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
-                  Risk offset <span style={{ color: "#aabbff" }}>{effectiveOffset >= 0 ? "+" : ""}{effectiveOffset.toFixed(2)}</span>
+                  Risk offset<InfoTip text="Shifts all risk readings up or down. Auto-vol adjusts based on this asset's current volatility versus its own history — calm periods buy more aggressively." /> <span style={{ color: "#aabbff" }}>{effectiveOffset >= 0 ? "+" : ""}{effectiveOffset.toFixed(2)}</span>
                   <button onClick={() => setAutoOffset(a => !a)} style={{
                     background: autoOffset ? "#6C8EFF22" : T.inputBg,
                     border: "1px solid " + (autoOffset ? "#6C8EFF" : T.border2),
@@ -1576,7 +1588,7 @@ export default function DCASimulator() {
           {/* Sell Strategy — always visible */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
             <div>
-              <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Sell Strategy</div>
+              <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Sell Strategy<InfoTip text="Automatically trims your position when risk gets dangerously high — takes profits near market tops." /></div>
               <div style={{ display: "flex", gap: 4 }}>
                 {pillBtn(!sellEnabled, () => setSellEnabled(false), "Off")}
                 {pillBtn(sellEnabled, () => setSellEnabled(true), "On")}
@@ -1601,7 +1613,7 @@ export default function DCASimulator() {
           {/* LEAP Strategy */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginTop: 12, flexWrap: "wrap", paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
             <div>
-              <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>LEAP Options</div>
+              <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>LEAP Options<InfoTip text="Replaces share purchases with long-dated call options at the deepest risk zones for amplified exposure with defined risk." /></div>
               <div style={{ display: "flex", gap: 4 }}>
                 {pillBtn(!leapEnabled, () => setLeapEnabled(false), "Off")}
                 {pillBtn(leapEnabled, () => setLeapEnabled(true), "On")}
@@ -1643,7 +1655,7 @@ export default function DCASimulator() {
           {/* Covered Call */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginTop: 12, flexWrap: "wrap", paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
             <div>
-              <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Covered Call</div>
+              <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Covered Call<InfoTip text="Sells call options against your holdings when risk exceeds 0.90, generating income near market tops. Collects premium while capping upside on half your position." /></div>
               <div style={{ display: "flex", gap: 4 }}>
                 {pillBtn(!ccEnabled, () => setCcEnabled(false), "Off")}
                 {pillBtn(ccEnabled, () => setCcEnabled(true), "On")}
