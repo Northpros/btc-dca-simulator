@@ -200,6 +200,7 @@ export default function DCASimulator() {
   const [initAvgPrice, setInitAvgPrice] = useState(() => getInitial("initAvgPrice", ""));
   const [sell90, setSell90] = useState(() => getInitial("sell90", true));
   const [sell80, setSell80] = useState(() => getInitial("sell80", true));
+  const [deepDipEnabled, setDeepDipEnabled] = useState(() => getInitial("deepDipEnabled", false));
   const [leapEnabled, setLeapEnabled] = useState(() => getInitial("leapEnabled", false));
   const [ccEnabled, setCcEnabled] = useState(() => getInitial("ccEnabled", false));
   const [ccPremiumPct, setCcPremiumPct] = useState(() => getInitial("ccPremiumPct", 0.40)); // 0.40% of share value per month
@@ -805,6 +806,7 @@ export default function DCASimulator() {
       } else {
         if (isBuyDay && !isLastDay) {
           let mult = getMultiplier(d.risk, riskBand, strategy);
+          if (deepDipEnabled && d.risk < 0.10 && mult > 0) mult *= 2;
           if (mult > 0) { purchase = baseAmount * mult; buyCount++; }
         }
       }
@@ -1059,7 +1061,7 @@ export default function DCASimulator() {
         sellPnlPct: totalInvested > 0 ? (((currentPortfolio + totalSellProceeds) / totalInvested - 1) * 100).toFixed(2) : 0,
       },
     };
-  }, [rangeData, tab, baseAmount, frequency, dayOfMonth, riskBand, strategy, sellEnabled, sell90, sell80, initEnabled, initShares, initAvgPrice, initDate, leapEnabled, leap09, leapCostPct, leapDelta, ccEnabled, ccPremiumPct]);
+  }, [rangeData, tab, baseAmount, frequency, dayOfMonth, riskBand, strategy, sellEnabled, sell90, sell80, deepDipEnabled, initEnabled, initShares, initAvgPrice, initDate, leapEnabled, leap09, leapCostPct, leapDelta, ccEnabled, ccPremiumPct]);
 
   const { chartData, riskData, tradeLog, stats } = simulation;
 
@@ -1192,7 +1194,7 @@ export default function DCASimulator() {
                       const settings = {
                         assetId, customTicker, frequency, startDate,
                         riskBandIdx, strategy, riskOffset,
-                        sellEnabled, sell90, sell80, initEnabled,
+                        sellEnabled, sell90, sell80, deepDipEnabled, initEnabled,
                         initShares, initAvgPrice, initDate,
                         leapEnabled, ccEnabled, ccPremiumPct,
                         leap09, leapCostPct, leapDelta,
@@ -1209,7 +1211,7 @@ export default function DCASimulator() {
                       setFrequency(d.frequency); setStartDate(d.startDate);
                       setRiskBandIdx(d.riskBandIdx); setStrategy(d.strategy);
                       setRiskOffset(d.riskOffset); setSellEnabled(d.sellEnabled);
-                      setSell90(d.sell90); setSell80(d.sell80 ?? true); setInitEnabled(d.initEnabled);
+                      setSell90(d.sell90); setSell80(d.sell80 ?? true); setDeepDipEnabled(d.deepDipEnabled ?? false); setInitEnabled(d.initEnabled);
                       setInitShares(d.initShares); setInitAvgPrice(d.initAvgPrice);
                       setInitDate(d.initDate); setLeapEnabled(d.leapEnabled);
                       setCcEnabled(d.ccEnabled); setCcPremiumPct(d.ccPremiumPct);
@@ -1429,6 +1431,13 @@ export default function DCASimulator() {
                 <div style={{ display: "flex", gap: 4 }}>
                   {pillBtn(strategy === "Linear", () => setStrategy("Linear"), "Linear")}
                   {pillBtn(strategy === "Exponential", () => setStrategy("Exponential"), "Exponential")}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: T.label, marginBottom: 4 }}>Deep Dip <span style={{ color: T.textDim }}>&lt; 0.10</span></div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {pillBtn(!deepDipEnabled, () => setDeepDipEnabled(false), "Off")}
+                  {pillBtn(deepDipEnabled, () => setDeepDipEnabled(true), "⚡ On")}
                 </div>
               </div>
               <div>
@@ -1678,14 +1687,16 @@ export default function DCASimulator() {
                     {/* Exponential buy tiers */}
                     {tab === "dynamic" && strategy === "Exponential" && expTiers.map(({ y1, y2, mult }, idx) => {
                       const alpha = 0.13 + (idx / Math.max(expTiers.length - 1, 1)) * 0.33;
+                      const isDeepZone = deepDipEnabled && y2 <= 0.10;
+                      const displayMult = isDeepZone ? mult * 2 : mult;
                       return (
                         <ReferenceArea
                           key={mult} yAxisId="risk" y1={y1} y2={y2}
-                          fill="#22c55e" fillOpacity={alpha}
-                          stroke="#22c55e" strokeOpacity={0.35} strokeWidth={0.5}
+                          fill={isDeepZone ? "#facc15" : "#22c55e"} fillOpacity={alpha}
+                          stroke={isDeepZone ? "#facc15" : "#22c55e"} strokeOpacity={0.35} strokeWidth={0.5}
                           label={{
-                            value: `Buy $${(baseAmount * mult).toLocaleString()} (${mult}x)`,
-                            fill: "#4ade80", fontSize: 9,
+                            value: `Buy $${(baseAmount * displayMult).toLocaleString()} (${displayMult}x)${isDeepZone ? " ⚡" : ""}`,
+                            fill: isDeepZone ? "#facc15" : "#4ade80", fontSize: 9,
                             fontFamily: "'DM Mono', monospace",
                             position: "insideRight",
                           }}
@@ -1696,14 +1707,16 @@ export default function DCASimulator() {
                     {/* Linear buy tiers */}
                     {tab === "dynamic" && strategy === "Linear" && linearTiers.map(({ y1, y2, mult }, idx) => {
                       const alpha = 0.13 + (idx / Math.max(linearTiers.length - 1, 1)) * 0.33;
+                      const isDeepZone = deepDipEnabled && y2 <= 0.10;
+                      const displayMult = isDeepZone ? mult * 2 : mult;
                       return (
                         <ReferenceArea
                           key={mult} yAxisId="risk" y1={y1} y2={y2}
-                          fill="#22c55e" fillOpacity={alpha}
-                          stroke="#22c55e" strokeOpacity={0.35} strokeWidth={0.5}
+                          fill={isDeepZone ? "#facc15" : "#22c55e"} fillOpacity={alpha}
+                          stroke={isDeepZone ? "#facc15" : "#22c55e"} strokeOpacity={0.35} strokeWidth={0.5}
                           label={{
-                            value: `Buy $${(baseAmount * mult).toLocaleString()} (${mult}x)`,
-                            fill: "#4ade80", fontSize: 9,
+                            value: `Buy $${(baseAmount * displayMult).toLocaleString()} (${displayMult}x)${isDeepZone ? " ⚡" : ""}`,
+                            fill: isDeepZone ? "#facc15" : "#4ade80", fontSize: 9,
                             fontFamily: "'DM Mono', monospace",
                             position: "insideRight",
                           }}
