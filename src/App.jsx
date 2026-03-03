@@ -654,14 +654,6 @@ export default function DCASimulator() {
   const maxDate = dailyData[dailyData.length - 1]?.date.toISOString().slice(0, 10) ?? new Date().toISOString().slice(0, 10);
 
   // Apply offset to all risk values in rangeData
-  const rangeData = useMemo(() => {
-    const s = new Date(startDate).getTime();
-    const e = new Date(endDate + "T23:59:59").getTime();
-    return dailyData
-      .filter(d => d.ts >= s && d.ts <= e)
-      .map(d => ({ ...d, risk: parseFloat(Math.min(1, Math.max(0, d.risk + effectiveOffset)).toFixed(4)) }));
-  }, [dailyData, startDate, endDate, effectiveOffset]);
-
   // Auto risk offset from realized volatility (60-day)
   const autoRiskOffset = useMemo(() => {
     if (dailyData.length < 61) return -0.05;
@@ -683,6 +675,14 @@ export default function DCASimulator() {
   }, [dailyData]);
 
   const effectiveOffset = autoOffset ? autoRiskOffset : riskOffset;
+  const rangeData = useMemo(() => {
+    const s = new Date(startDate).getTime();
+    const e = new Date(endDate + "T23:59:59").getTime();
+    return dailyData
+      .filter(d => d.ts >= s && d.ts <= e)
+      .map(d => ({ ...d, risk: parseFloat(Math.min(1, Math.max(0, d.risk + effectiveOffset)).toFixed(4)) }));
+  }, [dailyData, startDate, endDate, effectiveOffset]);
+
 
   // isPurchaseDay: returns true on the scheduled day OR the next available
   // trading day if the target falls on a weekend/holiday.
