@@ -1261,12 +1261,19 @@ export default function DCASimulator() {
         <div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
             <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: -0.8,
-              background: "linear-gradient(90deg, #a78bfa 0%, #60a5fa 50%, #34d399 100%)",
+              background: darkMode
+                ? "linear-gradient(135deg, #FDE08D 0%, #D4AF37 100%)"
+                : "linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)",
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text"
             }}>
               Reversion Alpha
             </h1>
-            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 800, letterSpacing: -0.8, color: darkMode ? "#fff" : T.text }}>
+            <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 800, letterSpacing: -0.8,
+              ...(darkMode
+                ? { background: "linear-gradient(135deg, #D8BFD8 0%, #A020F0 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }
+                : { color: "#4B0082" }
+              )
+            }}>
               DCA Pro
             </span>
           </div>
