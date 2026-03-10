@@ -1792,12 +1792,12 @@ export default function DCASimulator() {
                     if (latestRisk == null) return null;
                     const riskColor = latestRisk < 0.2 ? "#facc15" : latestRisk < 0.4 ? "#4ade80" : latestRisk < 0.6 ? "#aabbff" : latestRisk < 0.8 ? "#fb923c" : "#ef4444";
                     return (
-                      <span style={{ marginLeft: "auto", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+                      <span style={{ marginLeft: "auto", marginRight: 65, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
                         <span style={{ fontSize: 9, color: T.textDim, fontFamily: "'DM Mono', monospace", fontWeight: 400 }}>current risk</span>
                         <span style={{
-                          fontSize: 18, fontWeight: 700, fontFamily: "'DM Mono', monospace",
+                          fontSize: 14, fontWeight: 600, fontFamily: "'DM Mono', monospace",
                           color: riskColor,
-                          textShadow: `0 0 10px ${riskColor}66`,
+                          textShadow: `0 0 8px ${riskColor}66`,
                         }}>{latestRisk.toFixed(3)}</span>
                       </span>
                     );
