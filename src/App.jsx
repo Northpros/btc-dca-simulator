@@ -1270,8 +1270,11 @@ export default function DCASimulator() {
               DCA Pro
             </span>
           </div>
-          <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, margin: "6px 0 0", letterSpacing: 0.3, color: darkMode ? "#94a3b8" : T.label, fontStyle: "italic" }}>
+          <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 15, margin: "6px 0 0", letterSpacing: 0.3, color: darkMode ? "#94a3b8" : T.label, fontStyle: "italic", display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap" }}>
             Simulate, Optimize, and Execute Quantitative DCA Strategies.
+            <span style={{ marginLeft: 10, fontStyle: "normal", fontSize: 13, color: darkMode ? "#c9a84c" : "#a07820", letterSpacing: 0.4, whiteSpace: "nowrap" }}>
+              ◆ by North Prosperity ©
+            </span>
           </p>
           <p style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 11, margin: "6px 0 0", letterSpacing: 0.2, color: darkMode ? "#64748b" : T.textDim }}>
             Input Asset Ticker, DCA amount and parameters to simulate different accumulation and distribution strategies.
