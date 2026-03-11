@@ -1259,7 +1259,7 @@ export default function DCASimulator() {
       {/* Header */}
       <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: 3, textTransform: "uppercase", color: darkMode ? "#475569" : "#94a3b8", marginBottom: 6 }}>
+          <div style={{ fontSize: 9, fontFamily: "'DM Mono', monospace", letterSpacing: 3, textTransform: "uppercase", color: darkMode ? "#64748b" : "#94a3b8", marginBottom: 6 }}>
             North Prosperity
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
