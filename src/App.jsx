@@ -1373,7 +1373,7 @@ export default function DCASimulator() {
           <button style={tabStyle("equal")} onClick={() => setTab("equal")}>Equal $ DCA</button>
           <button style={tabStyle("lump")} onClick={() => setTab("lump")}>Lump $um</button>
           <button style={tabStyle("dynamic")} onClick={() => setTab("dynamic")}>Precision DCA</button>
-          <button style={{...tabStyle("portfolio"), marginLeft: "auto"}} onClick={() => setTab("portfolio")}>📊 Portfolio Tracker</button>
+          <button style={tabStyle("portfolio")} onClick={() => setTab("portfolio")}>📊 Portfolio Tracker</button>
         </div>
 
         {/* Company Name Banner */}
@@ -2738,68 +2738,8 @@ export default function DCASimulator() {
               </>
             )}
             </div>
-
-            {/* Portfolio Stats Sidebar */}
-            {(() => {
-              const totalValue = portfolio.reduce((sum, h) => {
-                const price = portfolioPrices[h.ticker?.toUpperCase()] ?? portfolioPrices[h.ticker] ?? 0;
-                return sum + (price * (parseFloat(h.shares) || 0));
-              }, 0);
-              const totalCost = portfolio.reduce((sum, h) => sum + ((parseFloat(h.entryPrice) || 0) * (parseFloat(h.shares) || 0)), 0);
-              const totalGain = totalValue - totalCost;
-              const totalGainPct = totalCost > 0 ? ((totalGain / totalCost) * 100).toFixed(2) : null;
-              const positions = portfolio.filter(h => h.ticker).length;
-              const plannedValue = planned.reduce((sum, h) => {
-                const price = portfolioPrices[h.ticker?.toUpperCase()] ?? 0;
-                return sum + (price * (parseFloat(h.shares) || 0));
-              }, 0);
-              const plannedCost = planned.reduce((sum, h) => sum + ((parseFloat(h.entryPrice) || 0) * (parseFloat(h.shares) || 0)), 0);
-              const plannedGain = plannedValue - plannedCost;
-              const targets = planned.filter(h => h.ticker).length;
-              return (
-                <div style={{ width: 210, borderLeft: `1px solid ${T.border}`, padding: "24px 20px", display: "flex", flexDirection: "column", gap: 24 }}>
-                  <div>
-                    <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4, letterSpacing: 1, textTransform: "uppercase" }}>Holdings</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: "#fff", fontFamily: "'Space Grotesk', sans-serif" }}>{fmtC(totalValue)}</div>
-                    <div style={{ fontSize: 10, color: T.label, marginTop: 2 }}>{positions} position{positions !== 1 ? "s" : ""}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4 }}>Cost Basis</div>
-                    <div style={{ fontSize: 20, fontWeight: 600, color: T.textMid, fontFamily: "'Space Grotesk', sans-serif" }}>{fmtC(totalCost)}</div>
-                  </div>
-                  {totalValue > 0 && (
-                    <div>
-                      <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4 }}>Total Gain / Loss</div>
-                      <div style={{ fontSize: 20, fontWeight: 600, color: totalGain >= 0 ? "#22c55e" : "#ef4444", fontFamily: "'Space Grotesk', sans-serif" }}>
-                        {totalGain >= 0 ? "+" : ""}{fmtC(totalGain)}
-                      </div>
-                      {totalGainPct && (
-                        <div style={{ fontSize: 13, marginTop: 4, color: totalGain >= 0 ? "#22c55e" : "#ef4444" }}>
-                          {totalGain >= 0 ? "▲" : "▼"} {Math.abs(totalGainPct)}%
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {targets > 0 && (
-                    <>
-                      <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 20 }}>
-                        <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 4, letterSpacing: 1, textTransform: "uppercase" }}>Planned</div>
-                        <div style={{ fontSize: 24, fontWeight: 600, color: "#a78bfa", fontFamily: "'Space Grotesk', sans-serif" }}>{fmtC(plannedValue)}</div>
-                        <div style={{ fontSize: 10, color: T.label, marginTop: 2 }}>{targets} target{targets !== 1 ? "s" : ""}</div>
-                      </div>
-                      {plannedValue > 0 && (
-                        <div>
-                          <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4 }}>Projected Gain</div>
-                          <div style={{ fontSize: 20, fontWeight: 600, color: plannedGain >= 0 ? "#22c55e" : "#ef4444", fontFamily: "'Space Grotesk', sans-serif" }}>
-                            {plannedGain >= 0 ? "+" : ""}{fmtC(plannedGain)}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })()}
+            {/* Width column — keeps portfolio same width as DCA tabs on desktop */}
+            <div style={{ width: 210, borderLeft: `1px solid ${T.border}`, flexShrink: 0 }} />
           </div>
         )}
 
