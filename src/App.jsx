@@ -2276,6 +2276,7 @@ export default function DCASimulator() {
         {tab === "portfolio" && (
           <div style={{ display: "flex" }}>
             <div style={{ flex: 1, minWidth: 0, padding: "24px 20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
                 <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 18, fontWeight: 700, margin: 0, color: T.text }}>Portfolio Tracker</h2>
                 <p style={{ fontSize: 11, color: T.textDim, margin: "4px 0 0" }}>Manual holdings · Live prices · Risk-based action signals</p>
@@ -2738,7 +2739,7 @@ export default function DCASimulator() {
             )}
             </div>
 
-            {/* Portfolio Stats Sidebar — mirrors DCA stats panel structure */}
+            {/* Portfolio Stats Sidebar */}
             {(() => {
               const totalValue = portfolio.reduce((sum, h) => {
                 const price = portfolioPrices[h.ticker?.toUpperCase()] ?? portfolioPrices[h.ticker] ?? 0;
@@ -2759,16 +2760,12 @@ export default function DCASimulator() {
                 <div style={{ width: 210, borderLeft: `1px solid ${T.border}`, padding: "24px 20px", display: "flex", flexDirection: "column", gap: 24 }}>
                   <div>
                     <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4, letterSpacing: 1, textTransform: "uppercase" }}>Holdings</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: "#fff", fontFamily: "'Space Grotesk', sans-serif" }}>
-                      {fmtC(totalValue)}
-                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: "#fff", fontFamily: "'Space Grotesk', sans-serif" }}>{fmtC(totalValue)}</div>
                     <div style={{ fontSize: 10, color: T.label, marginTop: 2 }}>{positions} position{positions !== 1 ? "s" : ""}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: 10, color: T.textDim, marginBottom: 4 }}>Cost Basis</div>
-                    <div style={{ fontSize: 20, fontWeight: 600, color: T.textMid, fontFamily: "'Space Grotesk', sans-serif" }}>
-                      {fmtC(totalCost)}
-                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 600, color: T.textMid, fontFamily: "'Space Grotesk', sans-serif" }}>{fmtC(totalCost)}</div>
                   </div>
                   {totalValue > 0 && (
                     <div>
@@ -2787,9 +2784,7 @@ export default function DCASimulator() {
                     <>
                       <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 20 }}>
                         <div style={{ fontSize: 10, color: "#a78bfa", marginBottom: 4, letterSpacing: 1, textTransform: "uppercase" }}>Planned</div>
-                        <div style={{ fontSize: 24, fontWeight: 600, color: "#a78bfa", fontFamily: "'Space Grotesk', sans-serif" }}>
-                          {fmtC(plannedValue)}
-                        </div>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: "#a78bfa", fontFamily: "'Space Grotesk', sans-serif" }}>{fmtC(plannedValue)}</div>
                         <div style={{ fontSize: 10, color: T.label, marginTop: 2 }}>{targets} target{targets !== 1 ? "s" : ""}</div>
                       </div>
                       {plannedValue > 0 && (
