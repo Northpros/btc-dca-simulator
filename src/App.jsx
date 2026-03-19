@@ -1366,7 +1366,7 @@ export default function DCASimulator() {
       </div>
 
       {/* Card */}
-      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "visible" }}>
 
         {/* Tabs */}
         <div style={{ borderBottom: `1px solid ${T.border}`, display: "flex", padding: "0 16px" }}>
@@ -2274,8 +2274,7 @@ export default function DCASimulator() {
 
         {/* Portfolio Tracker Tab */}
         {tab === "portfolio" && (
-          <div style={{ display: "flex" }}>
-            <div style={{ flex: 1, minWidth: 0, padding: "24px 20px" }}>
+          <div style={{ padding: "24px 20px" }}>
             {/* Header row */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
               <div>
@@ -2738,9 +2737,6 @@ export default function DCASimulator() {
                 </div>
               </>
             )}
-            </div>
-            {/* Dead space column — matches stats panel width to keep portfolio same width as other tabs */}
-            <div style={{ width: 210, minWidth: 0, flexShrink: 1, borderLeft: `1px solid ${T.border}` }} />
           </div>
         )}
 
